@@ -1145,7 +1145,7 @@ def run_experiment(dataset_mode, ensemble_setting):
             ensemble_inference_time + times["MutualInfo"][-1]
         )
 
-        # Adaptive Variance
+        # AdaptiveMI
         t0 = time.perf_counter()
 
         adaptive_extra_oracle_time = (

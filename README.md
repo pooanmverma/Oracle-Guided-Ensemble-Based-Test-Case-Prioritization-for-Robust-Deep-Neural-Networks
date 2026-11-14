@@ -29,6 +29,30 @@ A framework that leverages deep ensembles with a rotating oracle strategy to pri
 | SVHN | LeNet-5 | 5 |
 | CIFAR-10 | ResNet-20 | 5 |
 
+## Repository Structure
+
+### `models/`
+Pre-trained model weights (.h5) for MNIST (LeNet-1, LeNet-5), Fashion-MNIST (LeNet-5, ResNet-20), and CIFAR-10 (ResNet-20). Each model is trained with a different random seed for ensemble diversity.
+
+### `model/`
+Pre-trained SVHN LeNet-5 model weights (.h5), 5 seeds.
+
+### `retrained_models/`
+Models retrained using guidance-based test case selection on Fashion-MNIST. Each seed folder contains models retrained on the top-k prioritized test cases per metric.
+
+### `retrainedmnist_models/`
+Models retrained using guidance-based test case selection on MNIST. Each seed folder contains models retrained on the top-k prioritized test cases per metric, along with `guidance_results.csv` summarizing retraining outcomes.
+
+### `results/`
+APFD and APFD-time results (JSON) for 5-model, 7-model, and 10-model ensemble configurations across clean and adversarial settings in both exclusive and inclusive modes.
+
+### `code/`
+- `notebooks/` — End-to-end experiment scripts per dataset (cifar10, fashion-mnist, mnist, svhn)
+- `guidance/` — Guidance-based retraining scripts
+- `signifancetest.py` — Table 3 significance tests (paired bootstrap + Holm-Bonferroni)
+- `stattestfashion10model.py` — 10-model statistical tests (permutation, Wilcoxon, Cohen's d_z)
+- `transferbitycheck.py` — Exclusive vs Inclusive APFD comparison across all datasets
+
 ## Requirements
 
 - Python 3.8+

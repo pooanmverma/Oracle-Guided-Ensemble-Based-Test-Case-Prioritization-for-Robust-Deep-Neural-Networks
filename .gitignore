@@ -1,0 +1,7 @@
+code/notebooks/svhn/*.mat
+*.mat
+*.npy
+*.tar.gz
+data/
+adv_data_*/
+guidance/

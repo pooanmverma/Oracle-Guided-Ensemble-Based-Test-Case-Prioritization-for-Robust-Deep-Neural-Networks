@@ -43,9 +43,6 @@ Models retrained using guidance-based test case selection on Fashion-MNIST. Each
 ### `retrainedmnist_models/`
 Models retrained using guidance-based test case selection on MNIST. Each seed folder contains models retrained on the top-k prioritized test cases per metric, along with `guidance_results.csv` summarizing retraining outcomes.
 
-### `results/`
-APFD and APFD-time results (JSON) for 5-model, 7-model, and 10-model ensemble configurations across clean and adversarial settings in both exclusive and inclusive modes.
-
 ### `code/`
 - `notebooks/` — End-to-end experiment scripts per dataset (cifar10, fashion-mnist, mnist, svhn)
 - `guidance/` — Guidance-based retraining scripts

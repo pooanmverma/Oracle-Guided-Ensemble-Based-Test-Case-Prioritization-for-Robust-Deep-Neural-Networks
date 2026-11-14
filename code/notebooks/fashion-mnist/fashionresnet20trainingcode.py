@@ -1118,15 +1118,6 @@ def run_experiment(dataset_mode, ensemble_setting):
             ensemble_inference_time + times["MutualInfo"][-1]
         )
 
-        # AdaptiveMI
-        t0 = time.time()
-
-        adaptive_extra_oracle_time = (
-            0.0
-            if ensemble_setting == "inclusive"
-            else oracle_inference_time
-        )
-
         # Adaptive MI
         t0 = time.time()
 

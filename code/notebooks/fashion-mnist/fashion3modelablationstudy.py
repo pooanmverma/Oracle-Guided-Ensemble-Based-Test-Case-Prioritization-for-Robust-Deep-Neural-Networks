@@ -1196,11 +1196,6 @@ def run_experiment():
             ensemble_inference_time + times["MutualInfo"][-1]
         )
 
-        # AdaptiveMI
-        t0 = time.time()
-
-        rank_start = time.time()
-
         # Adaptive MI
         t0 = time.time()
 

@@ -5,3 +5,4 @@ code/notebooks/svhn/*.mat
 data/
 adv_data_*/
 guidance/
+adv_data/

@@ -11,7 +11,7 @@
 #   * per-model inference timed separately (model_inference_times)
 #   * each method's end_to_end_time INCLUDES the inference it needs:
 #       single-model -> oracle inference ; ensemble -> ensemble inference
-#       AdaptiveVar/AdaptiveMI -> ensemble (+ oracle if exclusive)
+# AdaptiveMI -> ensemble (+ oracle if exclusive)
 #       coverage -> activation extraction (t_ex) + coverage build + ranking
 #       Random -> ranking only
 #   * separate score_ranking_time (times) and prioritization_time (end_to_end)
@@ -32,7 +32,6 @@ import numpy as np
 import tensorflow as tf
 
 import SVNH_DatasetUtil
-
 
 # =====================================================
 # CONFIG
@@ -74,7 +73,6 @@ RUN_CONFIGS = [
 
 rng = np.random.default_rng(SEED)
 
-
 # =====================================================
 # DATA
 # =====================================================
@@ -96,7 +94,6 @@ def load_svhn():
         y_test = y_test.astype("int64")
 
     return (x_train, y_train), (x_test, y_test)
-
 
 def load_adv_for(model_key):
     """
@@ -129,7 +126,6 @@ def load_adv_for(model_key):
         )
 
     return np.concatenate(xs, axis=0)
-
 
 def prepare_pool(dataset_mode, oracle, x_clean, y_clean):
     """
@@ -166,7 +162,6 @@ def prepare_pool(dataset_mode, oracle, x_clean, y_clean):
 
     return x_all, y_all
 
-
 # =====================================================
 # ACTIVATION EXTRACTION
 # =====================================================
@@ -199,7 +194,6 @@ def build_activation_model(model):
         outputs=[layer.output for layer in relu_layers]
     )
 
-
 def extract_activations(act_model, x, batch=BATCH):
     outputs = act_model.predict(x, batch_size=batch, verbose=0)
 
@@ -217,7 +211,6 @@ def extract_activations(act_model, x, batch=BATCH):
 
     return np.concatenate(feats, axis=1), np.concatenate(layer_ids)
 
-
 # =====================================================
 # RANKING HELPERS
 # =====================================================
@@ -226,11 +219,9 @@ def rank_desc(scores, rng):
     scores = np.asarray(scores, dtype=np.float64)
     return np.lexsort((rng.random(len(scores)), -scores))
 
-
 def rank_asc(scores, rng):
     scores = np.asarray(scores, dtype=np.float64)
     return np.lexsort((rng.random(len(scores)), scores))
-
 
 def greedy_cam(cover_bool, rng, max_picks=None):
     N, M = cover_bool.shape
@@ -251,7 +242,6 @@ def greedy_cam(cover_bool, rng, max_picks=None):
     rest = np.where(remaining)[0]
     rng.shuffle(rest)
     return np.concatenate([np.array(order, dtype=int), rest]), len(order), covered.mean()
-
 
 def greedy_cam_kmnc(bin_ids, k_bins, rng, max_picks=None):
     N, M = bin_ids.shape
@@ -276,7 +266,6 @@ def greedy_cam_kmnc(bin_ids, k_bins, rng, max_picks=None):
     cov_rate = covered[:, 1:k_bins + 1].sum() / float(M * k_bins)
     return full, len(order), cov_rate
 
-
 # =====================================================
 # COVERAGE CRITERIA
 # =====================================================
@@ -284,14 +273,11 @@ def greedy_cam_kmnc(bin_ids, k_bins, rng, max_picks=None):
 def nac_cover(A, t):
     return (1.0 / (1.0 + np.exp(-A))) > t
 
-
 def snac_cover(A, upper):
     return A > upper
 
-
 def nbc_cover(A, upper, lower):
     return np.concatenate([A > upper, A < lower], axis=1)
-
 
 def tknc_cover(A, layer_ids, k):
     N, M = A.shape
@@ -305,12 +291,10 @@ def tknc_cover(A, layer_ids, k):
         cov[rows, cols[top.ravel()]] = True
     return cov
 
-
 def kmnc_bin_ids(A, lower, upper, k_bins):
     span = np.maximum(upper - lower, 1e-12)
     ids = (np.floor((A - lower) / span * k_bins).astype(np.int32) + 1)
     return np.clip(ids, 0, k_bins + 1)
-
 
 # =====================================================
 # UNCERTAINTY METRICS
@@ -319,18 +303,14 @@ def kmnc_bin_ids(A, lower, upper, k_bins):
 def deepgini(p):
     return 1 - np.sum(p ** 2, axis=1)
 
-
 def entropy(p):
     return -np.sum(p * np.log(p + 1e-12), axis=1)
-
 
 def ensemble_variance(probs):
     return np.mean(np.var(probs, axis=0), axis=1)
 
-
 def disagreement(mean_probs):
     return 1 - np.max(mean_probs, axis=1)
-
 
 def mutual_information(ens):
     mean_probs = np.mean(ens, axis=0)
@@ -338,19 +318,15 @@ def mutual_information(ens):
     H_models = -np.sum(ens * np.log(ens + 1e-12), axis=2)
     return H_mean - np.mean(H_models, axis=0)
 
-
 def softmax_confidence(p):
     return np.max(p, axis=1)
-
 
 def pcs(p):
     s = -np.sort(-p, axis=1)
     return s[:, 0] - s[:, 1]
 
-
 def normalize(x):
     return (x - x.min()) / (x.max() - x.min() + 1e-12)
-
 
 # =====================================================
 # APFD
@@ -365,7 +341,6 @@ def APFD(rank, faulty):
     pos[np.asarray(rank)] = np.arange(1, n + 1)
     return 1 - pos[faulty.astype(bool)].sum() / (n * m) + 1 / (2 * n)
 
-
 # =====================================================
 # METRIC NAMES
 # =====================================================
@@ -374,7 +349,7 @@ def build_metric_names():
     unc_names = [
         "DeepGini", "Entropy", "Softmax", "PCS",
         "EnsGini", "Variance", "Disagreement", "MutualInfo",
-        "AdaptiveVar", "AdaptiveMI",
+, "AdaptiveMI",
     ]
     cov_names = []
     for t in NAC_TS:
@@ -389,10 +364,8 @@ def build_metric_names():
         cov_names.append(f"KMNC({b})-CAM")
     return unc_names, cov_names, unc_names + cov_names + ["Random"]
 
-
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
 
 # =====================================================
 # ONE CONFIGURATION
@@ -515,11 +488,6 @@ def run_one_configuration(dataset_mode, ensemble_setting, models, names,
 
         t0 = time.perf_counter()
         av = (1 - normalize(var)) * normalize(gini) + normalize(var) ** 2
-        rankings["AdaptiveVar"] = rank_desc(av, rng_local)
-        times["AdaptiveVar"].append(time.perf_counter() - t0)
-        end_to_end_times["AdaptiveVar"].append(
-            ensemble_inference_time + adaptive_extra_oracle_time + times["AdaptiveVar"][-1]
-        )
 
         t0 = time.perf_counter()
         # formula UNCHANGED: oracle entropy + ensemble MI (needs oracle + ensemble)
@@ -673,7 +641,6 @@ def run_one_configuration(dataset_mode, ensemble_setting, models, names,
     print(f"Saved JSON: {output_json}")
     return payload, output_json
 
-
 # =====================================================
 # LATEX TABLE
 # =====================================================
@@ -720,7 +687,7 @@ def generate_latex_table(all_payloads, output_tex):
         ("Coverage-Based Metrics", [k for k in metric_names if "-CTM" in k or "-CAM" in k]),
         ("Single-Model Metrics", ["DeepGini", "Entropy", "Softmax", "PCS"]),
         ("Ensemble-Based Metrics",
-         ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AdaptiveVar", "AdaptiveMI"]),
+ ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AdaptiveMI"]),
         ("Baseline", ["Random"]),
     ]
 
@@ -743,7 +710,6 @@ def generate_latex_table(all_payloads, output_tex):
     lines.append(r"\end{table*}")
 
     Path(output_tex).write_text("\n".join(lines) + "\n")
-
 
 # =====================================================
 # MAIN
@@ -798,7 +764,6 @@ def main():
     print(f"Combined JSON: {combined_json}")
     print(f"LaTeX table:   {table_tex}")
     print("=" * 78)
-
 
 if __name__ == "__main__":
     main()

@@ -11,7 +11,6 @@ import random
 import numpy as np
 import tensorflow as tf
 
-
 # =====================================================
 # CONFIG
 # =====================================================
@@ -78,7 +77,6 @@ if DATA_SETTING not in ("clean", "adversarial"):
 
 rng = np.random.default_rng(SEED)
 
-
 # =====================================================
 # VERIFY MODELS
 # =====================================================
@@ -112,7 +110,6 @@ def verify_models(model_paths):
 
     print(f"\nVerified {len(model_paths)} unique model files.")
 
-
 # =====================================================
 # DATA
 # =====================================================
@@ -135,7 +132,6 @@ def load_fashion():
         (xte, yte.astype("int64"))
     )
 
-
 def load_adv_for(seed):
     """
     Load FGSM and BIM adversarial samples for the current oracle.
@@ -156,8 +152,6 @@ def load_adv_for(seed):
         )
 
     return np.concatenate(xs, axis=0)
-
-
 
 # =====================================================
 # ACTIVATION EXTRACTION
@@ -193,7 +187,6 @@ def build_activation_model(model):
         inputs=model.inputs,
         outputs=outs
     )
-
 
 def extract_activations(
     act_model,
@@ -234,7 +227,6 @@ def extract_activations(
         np.concatenate(layer_ids)
     )
 
-
 # =====================================================
 # RANKING HELPERS
 # =====================================================
@@ -252,7 +244,6 @@ def rank_desc(scores, rng):
         )
     )
 
-
 def rank_asc(scores, rng):
     scores = np.asarray(
         scores,
@@ -265,7 +256,6 @@ def rank_asc(scores, rng):
             scores
         )
     )
-
 
 # =====================================================
 # COVERAGE HELPERS
@@ -344,7 +334,6 @@ def greedy_cam(
         len(order),
         covered.mean()
     )
-
 
 def greedy_cam_kmnc(
     bin_ids,
@@ -430,7 +419,6 @@ def greedy_cam_kmnc(
         cov_rate
     )
 
-
 # =====================================================
 # COVERAGE CRITERIA
 # =====================================================
@@ -440,10 +428,8 @@ def nac_cover(A, t):
         1.0 / (1.0 + np.exp(-A))
     ) > t
 
-
 def snac_cover(A, upper):
     return A > upper
-
 
 def nbc_cover(
     A,
@@ -457,7 +443,6 @@ def nbc_cover(
         ],
         axis=1
     )
-
 
 def tknc_cover(
     A,
@@ -502,7 +487,6 @@ def tknc_cover(
 
     return cov
 
-
 def kmnc_bin_ids(
     A,
     lower,
@@ -526,7 +510,6 @@ def kmnc_bin_ids(
         k_bins + 1
     )
 
-
 # =====================================================
 # UNCERTAINTY METRICS
 # =====================================================
@@ -539,7 +522,6 @@ def deepgini(p):
         )
     )
 
-
 def entropy(p):
     return -np.sum(
         p * np.log(
@@ -547,7 +529,6 @@ def entropy(p):
         ),
         axis=1
     )
-
 
 def ensemble_variance(probs):
     return np.mean(
@@ -558,7 +539,6 @@ def ensemble_variance(probs):
         axis=1
     )
 
-
 def disagreement(mean_probs):
     return (
         1 - np.max(
@@ -566,7 +546,6 @@ def disagreement(mean_probs):
             axis=1
         )
     )
-
 
 def mutual_information(ens):
     mean_probs = np.mean(
@@ -594,13 +573,11 @@ def mutual_information(ens):
         )
     )
 
-
 def softmax_confidence(p):
     return np.max(
         p,
         axis=1
     )
-
 
 def pcs(p):
     sorted_p = -np.sort(
@@ -613,7 +590,6 @@ def pcs(p):
         - sorted_p[:, 1]
     )
 
-
 def normalize(x):
     return (
         (x - x.min())
@@ -623,7 +599,6 @@ def normalize(x):
             + 1e-12
         )
     )
-
 
 # =====================================================
 # APFD
@@ -662,7 +637,6 @@ def APFD(
         / (n * m)
         + 1 / (2 * n)
     )
-
 
 # =====================================================
 # MAIN
@@ -734,7 +708,6 @@ def run_experiment():
         "Variance",
         "Disagreement",
         "MutualInfo",
-        "AdaptiveVar",
         "AdaptiveMI",
     ]
 
@@ -1226,30 +1199,7 @@ def run_experiment():
         # Adaptive Variance
         t0 = time.time()
 
-        adaptive_var = (
-            (1 - normalize(var))
-            * normalize(gini)
-            + normalize(var) ** 2
-        )
-
         rank_start = time.time()
-
-        rankings["AdaptiveVar"] = rank_desc(
-            adaptive_var,
-            rng
-        )
-
-        ranking_times["AdaptiveVar"].append(
-            time.time() - rank_start
-        )
-
-        times["AdaptiveVar"].append(
-            time.time() - t0
-        )
-
-        end_to_end_times["AdaptiveVar"].append(
-            all_models_inference_time + times["AdaptiveVar"][-1]
-        )
 
         # Adaptive MI
         t0 = time.time()
@@ -1904,7 +1854,6 @@ def run_experiment():
             f"{np.std(end_to_end_times[metric]):.4f}"
         )
 
-
     # =====================================================
     # RANKING TIME
     # =====================================================
@@ -1944,7 +1893,6 @@ def run_experiment():
         f"({total_time / 60:.2f} minutes)"
     )
     print("=" * 62)
-
 
 def main():
 
@@ -2045,7 +1993,6 @@ def main():
         f"({overall_time / 60:.2f} minutes)"
     )
     print("=" * 78)
-
 
 if __name__ == "__main__":
     main()

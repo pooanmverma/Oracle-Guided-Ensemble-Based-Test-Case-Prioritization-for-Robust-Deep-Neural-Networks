@@ -8,7 +8,6 @@ END-TO-END TIMING PORTED FROM THE CIFAR-10 SCRIPT (consistent across datasets):
   * each method's end_to_end_time INCLUDES the inference it actually needs:
       single-model  -> oracle inference
       ensemble      -> ensemble inference (incl/excl oracle per setting)
-      AdaptiveVar   -> ensemble inference (+ oracle inference only if exclusive)
       AdaptiveMI    -> ensemble inference
       coverage      -> activation extraction (t_ex) + coverage build + ranking
       Random        -> ranking only (no inference)
@@ -62,7 +61,6 @@ RUN_CONFIGS = [
     ("adversarial", "inclusive"),
 ]
 
-
 # =====================================================
 # DATA
 # =====================================================
@@ -73,7 +71,6 @@ def load_mnist():
     xte = np.expand_dims(xte.astype("float32") / 255.0, -1)
     return (xtr, ytr.astype("int64")), (xte, yte.astype("int64"))
 
-
 def load_adv_for(seed):
     """Model-specific FGSM and BIM adversarial samples (each 10,000)."""
     fgsm_path = os.path.join(ADV_DIR, f"mnist_lenet1_fgsm_seed{seed}.npy")
@@ -83,7 +80,6 @@ def load_adv_for(seed):
     if not os.path.isfile(bim_path):
         raise FileNotFoundError(f"Missing BIM adversarial file: {bim_path}")
     return np.load(fgsm_path).astype("float32"), np.load(bim_path).astype("float32")
-
 
 def prepare_pool(dataset_mode, oracle, x_clean, y_clean):
     if dataset_mode == "clean":
@@ -100,7 +96,6 @@ def prepare_pool(dataset_mode, oracle, x_clean, y_clean):
     x_all = np.concatenate([x_clean, x_fgsm, x_bim], axis=0)
     y_all = np.tile(y_clean, 3)
     return x_all, y_all
-
 
 # =====================================================
 # ACTIVATION EXTRACTION  (LeNet-1: Conv/Dense + separate Activation)
@@ -120,7 +115,6 @@ def build_activation_model(model):
         outs = outs[:-1]   # drop final (softmax) output
     return tf.keras.models.Model(inputs=model.inputs, outputs=outs)
 
-
 def extract_activations(act_model, x, batch=BATCH):
     outs = act_model.predict(x, batch_size=batch, verbose=0)
     if not isinstance(outs, list):
@@ -132,7 +126,6 @@ def extract_activations(act_model, x, batch=BATCH):
         feats.append(o.astype("float32"))
         layer_ids.append(np.full(o.shape[1], i, dtype=np.int32))
     return np.concatenate(feats, axis=1), np.concatenate(layer_ids)
-
 
 # =====================================================
 # RANKING / COVERAGE HELPERS
@@ -189,7 +182,6 @@ def greedy_cam_kmnc(bin_ids, k_bins, rng, max_picks=None):
     cov_rate = covered[:, 1:k_bins + 1].sum() / float(M * k_bins)
     return full, len(order), cov_rate
 
-
 def nac_cover(A, t): return (1.0 / (1.0 + np.exp(-A))) > t
 def snac_cover(A, upper): return A > upper
 def nbc_cover(A, upper, lower): return np.concatenate([A > upper, A < lower], axis=1)
@@ -211,7 +203,6 @@ def kmnc_bin_ids(A, lower, upper, k_bins):
     ids = np.floor((A - lower) / span * k_bins).astype(np.int32) + 1
     return np.clip(ids, 0, k_bins + 1)
 
-
 # =====================================================
 # UNCERTAINTY METRICS
 # =====================================================
@@ -232,7 +223,6 @@ def pcs(p):
     s = -np.sort(-p, axis=1); return s[:, 0] - s[:, 1]
 def normalize(x): return (x - x.min()) / (x.max() - x.min() + 1e-12)
 
-
 # =====================================================
 # APFD
 # =====================================================
@@ -244,15 +234,13 @@ def APFD(rank, faulty):
     pos[np.asarray(rank)] = np.arange(1, n + 1)
     return 1 - pos[faulty.astype(bool)].sum() / (n * m) + 1 / (2 * n)
 
-
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
 
 def build_metric_names():
     unc_names = ["DeepGini", "Entropy", "Softmax", "PCS",
                  "EnsGini", "Variance", "Disagreement", "MutualInfo",
-                 "AdaptiveVar", "AdaptiveMI"]
+, "AdaptiveMI"]
     cov_names = []
     for t in NAC_TS:   cov_names += [f"NAC({t})-CTM", f"NAC({t})-CAM"]
     for s in NBC_STDS: cov_names += [f"NBC({s})-CTM", f"NBC({s})-CAM"]
@@ -260,7 +248,6 @@ def build_metric_names():
     for k in TKNC_KS:  cov_names.append(f"TKNC({k})-CAM")
     for b in KMNC_BINS_LIST: cov_names.append(f"KMNC({b})-CAM")
     return unc_names, cov_names, unc_names + cov_names + ["Random"]
-
 
 # =====================================================
 # ONE CONFIGURATION
@@ -323,7 +310,6 @@ def run_one_configuration(dataset_mode, ensemble_setting, models, names,
         ensemble_names = [names[j] for j in range(len(names))
                           if ensemble_setting == "inclusive" or j != oi]
         ensemble_inference_time = sum(model_inference_times[n] for n in ensemble_names)
-        # AdaptiveVar needs oracle (gini) + ensemble (var). In inclusive the oracle
         # is already inside the ensemble; in exclusive add it once.
         adaptive_extra_oracle_time = (
             0.0 if ensemble_setting == "inclusive" else oracle_inference_time
@@ -383,11 +369,6 @@ def run_one_configuration(dataset_mode, ensemble_setting, models, names,
 
         t0 = time.perf_counter()
         av = (1 - normalize(var)) * normalize(gini) + normalize(var) ** 2
-        rankings["AdaptiveVar"] = rank_desc(av, rng_local)
-        times["AdaptiveVar"].append(time.perf_counter() - t0)
-        end_to_end_times["AdaptiveVar"].append(
-            ensemble_inference_time + adaptive_extra_oracle_time + times["AdaptiveVar"][-1]
-        )
 
         t0 = time.perf_counter()
         # matches CIFAR: ensemble-mean entropy (purely ensemble-based)
@@ -527,7 +508,6 @@ def run_one_configuration(dataset_mode, ensemble_setting, models, names,
     print(f"Saved JSON: {output_json}")
     return payload, output_json
 
-
 # =====================================================
 # MAIN
 # =====================================================
@@ -569,7 +549,6 @@ def main():
     print(f"Four-run wall-clock: {overall_time:.2f}s ({overall_time/60:.2f} min)")
     print(f"Combined JSON: {combined_json}")
     print("=" * 78)
-
 
 if __name__ == "__main__":
     main()

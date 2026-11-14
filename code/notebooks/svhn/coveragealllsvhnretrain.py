@@ -38,13 +38,11 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.utils import to_categorical
 
-
 # =====================================================
 # WHAT TO RUN
 # =====================================================
 
 STAGE = "all"          # "split" | "generate" | "retrain" | "all"
-
 
 # =====================================================
 # PARAMETERS
@@ -69,8 +67,7 @@ NUM_CLASSES = 10
 RANDOM_SEED = 42
 
 METRIC_NAMES = ["DeepGini", "Entropy", "EnsGini", "Variance", "Disagreement",
-                "MutualInfo", "AdaptiveVar", "AdaptiveMI", "Softmax", "PCS"]
-
+ "MutualInfo", "AdaptiveMI", "Softmax", "PCS"]
 
 # =====================================================
 # HELPERS
@@ -96,7 +93,6 @@ def load_test_labels():
 
 def model_path(seed):
     return os.path.join(MODEL_DIR, f"svhn_{seed}.h5")
-
 
 # =====================================================
 # STAGE 1 : SPLIT  T / V
@@ -134,7 +130,6 @@ def stage_split():
         np.save(os.path.join(save_dir, "V_labels.npy"), labels[split:])
         print(f"  {seed}: total={len(images)}  T={split}  V={len(images)-split}")
 
-
 # =====================================================
 # METRICS
 # =====================================================
@@ -153,7 +148,6 @@ def mutual_information(ens):
 def softmax_confidence(p): return np.max(p, axis=1)
 def pcs(p):
     s = -np.sort(-p, axis=1); return s[:, 0] - s[:, 1]
-
 
 # =====================================================
 # STAGE 2 : GENERATE  ranked top-k
@@ -193,7 +187,7 @@ def stage_generate():
             "DeepGini": np.argsort(-gini), "Entropy": np.argsort(-ent),
             "EnsGini": np.argsort(-gini_ens), "Variance": np.argsort(-var),
             "Disagreement": np.argsort(-dis), "MutualInfo": np.argsort(-mi),
-            "AdaptiveVar": np.argsort(-av), "AdaptiveMI": np.argsort(-ami),
+: np.argsort(-av), "AdaptiveMI": np.argsort(-ami),
             "Softmax": np.argsort(soft), "PCS": np.argsort(pcs_s),
         }
 
@@ -207,7 +201,6 @@ def stage_generate():
                 np.save(os.path.join(mdir, f"top{p}_images.npy"), x_T[idx])
                 np.save(os.path.join(mdir, f"top{p}_labels.npy"), y_T[idx])
             print(f"  {metric:12s} done")
-
 
 # =====================================================
 # MODEL  (LeNet-5, SVHN: 32x32x3)  -- matches training script
@@ -226,13 +219,11 @@ def build_model():
         layers.Dense(10, activation="softmax"),
     ])
 
-
 def load_svhn_train():
     train = sio.loadmat(f"{BASE}/svhn/train_32x32.mat")
     x = np.transpose(train["X"], (3, 0, 1, 2)).astype("float32") / 255.0
     y = train["y"].reshape(-1); y[y == 10] = 0
     return x, y.astype("int64")
-
 
 # =====================================================
 # STAGE 3 : RETRAIN  (resumable)
@@ -305,7 +296,6 @@ def stage_retrain():
     print(pivot.round(4))
     print("\n  Saved ->", csv_path)
 
-
 # =====================================================
 # MAIN
 # =====================================================
@@ -318,7 +308,6 @@ def main():
     if STAGE in ("retrain", "all"):
         stage_retrain()
     print("\nDONE.")
-
 
 if __name__ == "__main__":
     main()

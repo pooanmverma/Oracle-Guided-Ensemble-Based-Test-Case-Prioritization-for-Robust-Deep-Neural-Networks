@@ -12,7 +12,6 @@ from datetime import datetime, timezone
 import numpy as np
 import tensorflow as tf
 
-
 # =====================================================
 # CONFIG
 # =====================================================
@@ -68,7 +67,6 @@ RUN_CONFIGS = [
 
 rng = np.random.default_rng(SEED)
 
-
 # =====================================================
 # VERIFY MODELS
 # =====================================================
@@ -102,7 +100,6 @@ def verify_models(model_paths):
 
     print(f"\nVerified {len(model_paths)} unique model files.")
 
-
 # =====================================================
 # DATA
 # =====================================================
@@ -124,7 +121,6 @@ def load_fashion():
         (xtr, ytr.astype("int64")),
         (xte, yte.astype("int64"))
     )
-
 
 def load_adv_for(seed):
     """
@@ -151,7 +147,6 @@ def load_adv_for(seed):
         xs.append(x_adv)
 
     return np.concatenate(xs, axis=0)
-
 
 # =====================================================
 # ACTIVATION EXTRACTION (POST-RELU / POST-ACTIVATION)
@@ -215,7 +210,6 @@ def build_activation_model(model):
         outputs=[layer.output for layer in activation_layers]
     )
 
-
 def extract_activations(
     act_model,
     x,
@@ -255,7 +249,6 @@ def extract_activations(
         np.concatenate(layer_ids)
     )
 
-
 # =====================================================
 # RANKING HELPERS
 # =====================================================
@@ -273,7 +266,6 @@ def rank_desc(scores, rng):
         )
     )
 
-
 def rank_asc(scores, rng):
     scores = np.asarray(
         scores,
@@ -286,7 +278,6 @@ def rank_asc(scores, rng):
             scores
         )
     )
-
 
 # =====================================================
 # COVERAGE HELPERS
@@ -365,7 +356,6 @@ def greedy_cam(
         len(order),
         covered.mean()
     )
-
 
 def greedy_cam_kmnc(
     bin_ids,
@@ -451,7 +441,6 @@ def greedy_cam_kmnc(
         cov_rate
     )
 
-
 # =====================================================
 # COVERAGE CRITERIA
 # =====================================================
@@ -461,10 +450,8 @@ def nac_cover(A, t):
         1.0 / (1.0 + np.exp(-A))
     ) > t
 
-
 def snac_cover(A, upper):
     return A > upper
-
 
 def nbc_cover(
     A,
@@ -478,7 +465,6 @@ def nbc_cover(
         ],
         axis=1
     )
-
 
 def tknc_cover(
     A,
@@ -523,7 +509,6 @@ def tknc_cover(
 
     return cov
 
-
 def kmnc_bin_ids(
     A,
     lower,
@@ -547,7 +532,6 @@ def kmnc_bin_ids(
         k_bins + 1
     )
 
-
 # =====================================================
 # UNCERTAINTY METRICS
 # =====================================================
@@ -560,7 +544,6 @@ def deepgini(p):
         )
     )
 
-
 def entropy(p):
     return -np.sum(
         p * np.log(
@@ -568,7 +551,6 @@ def entropy(p):
         ),
         axis=1
     )
-
 
 def ensemble_variance(probs):
     return np.mean(
@@ -579,7 +561,6 @@ def ensemble_variance(probs):
         axis=1
     )
 
-
 def disagreement(mean_probs):
     return (
         1 - np.max(
@@ -587,7 +568,6 @@ def disagreement(mean_probs):
             axis=1
         )
     )
-
 
 def mutual_information(ens):
     mean_probs = np.mean(
@@ -615,13 +595,11 @@ def mutual_information(ens):
         )
     )
 
-
 def softmax_confidence(p):
     return np.max(
         p,
         axis=1
     )
-
 
 def pcs(p):
     sorted_p = -np.sort(
@@ -634,7 +612,6 @@ def pcs(p):
         - sorted_p[:, 1]
     )
 
-
 def normalize(x):
     return (
         (x - x.min())
@@ -644,7 +621,6 @@ def normalize(x):
             + 1e-12
         )
     )
-
 
 # =====================================================
 # APFD
@@ -683,7 +659,6 @@ def APFD(
         / (n * m)
         + 1 / (2 * n)
     )
-
 
 # =====================================================
 # MAIN
@@ -758,7 +733,6 @@ def run_experiment(dataset_mode, ensemble_setting):
         "Variance",
         "Disagreement",
         "MutualInfo",
-        "AdaptiveVar",
         "AdaptiveMI",
     ]
 
@@ -1174,29 +1148,10 @@ def run_experiment(dataset_mode, ensemble_setting):
         # Adaptive Variance
         t0 = time.perf_counter()
 
-        adaptive_var = (
-            (1 - normalize(var))
-            * normalize(gini)
-            + normalize(var) ** 2
-        )
-
-        rankings["AdaptiveVar"] = rank_desc(
-            adaptive_var,
-            rng
-        )
-
-        times["AdaptiveVar"].append(
-            time.perf_counter() - t0
-        )
         adaptive_extra_oracle_time = (
             0.0
             if ensemble_setting == "inclusive"
             else oracle_inference_time
-        )
-        end_to_end_times["AdaptiveVar"].append(
-            ensemble_inference_time
-            + adaptive_extra_oracle_time
-            + times["AdaptiveVar"][-1]
         )
 
         # Adaptive MI
@@ -1730,7 +1685,6 @@ def run_experiment(dataset_mode, ensemble_setting):
 
     return total_time
 
-
 def main():
 
     # =====================================================
@@ -1780,7 +1734,6 @@ def main():
         f"({overall_time / 60:.2f} minutes)"
     )
     print("=" * 78)
-
 
 if __name__ == "__main__":
     main()

@@ -15,8 +15,6 @@ Architecture handling matches the ORIGINAL scripts exactly:
   * models         : resnet20_best / seed1 / seed2 / seed9 / seed23
   * adv mapping    : cifar10_{attack}_resnet20_{name}.npy, name = best/seedX
   
-
-
 import os
 os.environ.setdefault("OMP_NUM_THREADS", "16")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "16")
@@ -61,7 +59,6 @@ CAM_MAX_PICKS = None
 
 rng = np.random.default_rng(SEED)
 
-
 # =====================================================
 # DATA  (mean-subtraction, exactly as in training)
 # =====================================================
@@ -76,7 +73,6 @@ def load_cifar():
     x_train -= mean
     x_test -= mean
     return (x_train, y_train), (x_test, y_test), mean
-
 
 def load_adv_for(model_key, mean):
     
@@ -97,7 +93,6 @@ def load_adv_for(model_key, mean):
             f"Expected both FGSM and BIM adversarial files for oracle '{model_key}'."
         )
     return np.concatenate(xs, axis=0)
-
 
 # =====================================================
 # ACTIVATION EXTRACTION  (ReLU outputs for ResNet)
@@ -121,7 +116,6 @@ def build_activation_model(model):
     return tf.keras.models.Model(inputs=model.inputs,
                                  outputs=[l.output for l in relu_layers])
 
-
 def extract_activations(act_model, x, batch=BATCH):
     outs = act_model.predict(x, batch_size=batch, verbose=0)
     if not isinstance(outs, list):
@@ -133,7 +127,6 @@ def extract_activations(act_model, x, batch=BATCH):
         feats.append(o.astype("float32"))
         layer_ids.append(np.full(o.shape[1], i, dtype=np.int32))
     return np.concatenate(feats, axis=1), np.concatenate(layer_ids)
-
 
 # =====================================================
 # RANKING HELPERS
@@ -190,7 +183,6 @@ def greedy_cam_kmnc(bin_ids, k_bins, rng, max_picks=None):
     cov_rate = covered[:, 1:k_bins + 1].sum() / float(M * k_bins)
     return full, len(order), cov_rate
 
-
 # =====================================================
 # COVERAGE CRITERIA
 # =====================================================
@@ -221,7 +213,6 @@ def kmnc_bin_ids(A, lower, upper, k_bins):
     ids = np.floor((A - lower) / span * k_bins).astype(np.int32) + 1
     return np.clip(ids, 0, k_bins + 1)
 
-
 # =====================================================
 # UNCERTAINTY METRICS
 # =====================================================
@@ -242,7 +233,6 @@ def pcs(p):
     s = -np.sort(-p, axis=1); return s[:, 0] - s[:, 1]
 def normalize(x): return (x - x.min()) / (x.max() - x.min() + 1e-12)
 
-
 # =====================================================
 # APFD
 # =====================================================
@@ -253,7 +243,6 @@ def APFD(rank, faulty):
     pos = np.empty(n, dtype=np.int64)
     pos[np.asarray(rank)] = np.arange(1, n + 1)
     return 1 - pos[faulty.astype(bool)].sum() / (n * m) + 1 / (2 * n)
-
 
 # =====================================================
 # EXPERIMENT RUNNER
@@ -266,16 +255,14 @@ RUN_CONFIGS = [
     ("adversarial", "inclusive"),
 ]
 
-
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
 
 def build_metric_names():
     unc_names = [
         "DeepGini", "Entropy", "Softmax", "PCS",
         "EnsGini", "Variance", "Disagreement", "MutualInfo",
-        "AdaptiveVar", "AdaptiveMI"
+, "AdaptiveMI"
     ]
 
     cov_names = []
@@ -291,7 +278,6 @@ def build_metric_names():
         cov_names.append(f"KMNC({b})-CAM")
 
     return unc_names, cov_names, unc_names + cov_names + ["Random"]
-
 
 def prepare_pool(dataset_mode, oracle, x_clean, y_clean, mean):
     if dataset_mode == "clean":
@@ -321,7 +307,6 @@ def prepare_pool(dataset_mode, oracle, x_clean, y_clean, mean):
     y_all = np.tile(y_clean, 1 + num_attacks)
 
     return x_all, y_all
-
 
 def run_one_configuration(
     dataset_mode,
@@ -491,13 +476,6 @@ def run_one_configuration(
 
         t0 = time.perf_counter()
         av = (1 - normalize(var)) * normalize(gini) + normalize(var) ** 2
-        rankings["AdaptiveVar"] = rank_desc(av, rng_local)
-        times["AdaptiveVar"].append(time.perf_counter() - t0)
-        end_to_end_times["AdaptiveVar"].append(
-            ensemble_inference_time
-            + adaptive_extra_oracle_time
-            + times["AdaptiveVar"][-1]
-        )
 
         t0 = time.perf_counter()
         ami = (
@@ -769,7 +747,6 @@ def run_one_configuration(
 
     return payload, output_json
 
-
 def generate_latex_table(all_payloads, output_tex):
     """Generate one LaTeX table containing all four experiments."""
     _, _, metric_names = build_metric_names()
@@ -824,7 +801,7 @@ def generate_latex_table(all_payloads, output_tex):
         ]),
         ("Ensemble-Based Metrics", [
             "EnsGini", "Variance", "Disagreement", "MutualInfo",
-            "AdaptiveVar", "AdaptiveMI"
+, "AdaptiveMI"
         ]),
         ("Baseline", ["Random"]),
     ]
@@ -856,7 +833,6 @@ def generate_latex_table(all_payloads, output_tex):
     lines.append(r"\end{table*}")
 
     Path(output_tex).write_text("\n".join(lines) + "\n")
-
 
 def main():
     overall_start = time.perf_counter()
@@ -938,7 +914,6 @@ def main():
     print(f"Combined JSON: {combined_json}")
     print(f"LaTeX table:   {table_tex}")
     print("=" * 78)
-
 
 if __name__ == "__main__":
     main()

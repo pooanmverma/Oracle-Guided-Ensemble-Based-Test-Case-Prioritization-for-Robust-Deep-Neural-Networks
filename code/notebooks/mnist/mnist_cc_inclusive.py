@@ -46,7 +46,6 @@ def load_clean():
     y_test = y_test.flatten()
     return x_test, y_test
 
-
 def load_mnist_c(corruption, severity):
     x = np.load(os.path.join(MNISTC_DIR, corruption, "test_images.npy"))
     y = np.load(os.path.join(MNISTC_DIR, corruption, "test_labels.npy"))
@@ -147,7 +146,6 @@ def main():
         "DIS":[],
         "MI":[],
         "HYBRID":[],
-        "ADAPTIVE_VAR":[],
         "ADAPTIVE_MI":[],
         "PCS":[],
         "SOFTMAX":[],
@@ -202,7 +200,6 @@ def main():
 
                 gini_n = normalize(gini_single)
                 var_n = normalize(var_score)
-                adaptive_var = (1-var_n)*gini_n + var_n*var_n
 
                 ent_n = normalize(ent_score)
                 mi_n = normalize(mi_score)
@@ -221,7 +218,6 @@ def main():
                     "DIS": np.argsort(-dis_score),
                     "MI": np.argsort(-mi_score),
                     "HYBRID": np.argsort(-hybrid),
-                    "ADAPTIVE_VAR": np.argsort(-adaptive_var),
                     "ADAPTIVE_MI": np.argsort(-adaptive_mi),
 
                     # confidence → ascending
@@ -244,7 +240,6 @@ def main():
 
     for key in results:
         print(f"{key:15s}: {np.mean(results[key]):.4f} ± {np.std(results[key]):.4f}")
-
 
 if __name__ == "__main__":
     main()

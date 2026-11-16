@@ -188,7 +188,7 @@ def main():
 
                 ent_n = normalize(ent_score)
                 mi_n  = normalize(mi_score)
-                adaptive_mi = (0.5*ent_n + 0.5*mi_n)
+                aggregated_mi = (0.5*ent_n + 0.5*mi_n)
 
                 # ✅ FIXED METRICS
                 pcs_score     = pcs(oracle_probs)
@@ -207,7 +207,7 @@ def main():
                     "DIS": np.argsort(-dis_score),
                     "MI": np.argsort(-mi_score),
                     "HYBRID": np.argsort(-hybrid),
-                    "ADAPTIVE_MI": np.argsort(-adaptive_mi),
+                    "ADAPTIVE_MI": np.argsort(-aggregated_mi),
 
                     # ✅ confidence metrics → ascending
                     "PCS": np.argsort(pcs_score),

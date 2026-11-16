@@ -1196,10 +1196,10 @@ def run_experiment():
             ensemble_inference_time + times["MutualInfo"][-1]
         )
 
-        # Adaptive MI
+        # Aggregated MI
         t0 = time.time()
 
-        adaptive_mi = (
+        aggregated_mi = (
             0.5
             * normalize(
                 entropy(oracle_probs)
@@ -1214,7 +1214,7 @@ def run_experiment():
         rank_start = time.time()
 
         rankings["AggregatedMI"] = rank_desc(
-            adaptive_mi,
+            aggregated_mi,
             rng
         )
 

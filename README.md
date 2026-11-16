@@ -86,7 +86,6 @@ Adversarial `.npy` files are stored in `adv_data*/` directories, named as `{data
 ├── retrained_models/               # Retrained models from guidance (Fashion-MNIST)
 ├── retrainedmnist_models/          # Retrained models from guidance (MNIST)
 ├── guidance_results/               # Guidance retraining results (CSVs)
-├── results/                        # APFD results per experiment (JSON)
 ├── plotrq3.py                      # RQ3 visualization script
 └── README.md
 ```

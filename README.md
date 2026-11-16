@@ -180,10 +180,3 @@ APFD = 1 − (Σ rank of faulty inputs) / (n × m) + 1/(2n)
 
 where *n* = total test inputs, *m* = number of faulty inputs.
 
-## License
-
-This project is released for research purposes.
-
-## Citation
-
-Citation details will be added upon publication.

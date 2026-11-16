@@ -41,10 +41,10 @@ We propose a **rotating oracle-guided deep ensemble framework**: a pool of *N* i
 
 | Dataset | Model |  # Ensemble Members 
 |---------|-------|--------------------
-| MNIST | LeNet-1 |          5 
-|Fashion-MNIST    |          5 (3,7 10 for ablation) 
+| MNIST | LeNet-1,LeNet-5, |          5 
+|Fashion-MNIST |Lenet1,Lenet5   |          5 (3,7 10 for ablation) 
 |SVHN | LeNet-5   |          5 
-| CIFAR-10        |          5 
+| CIFAR-10        | Resnet20         5 
 
 Each ensemble member is trained with a different random seed to ensure diversity.
 

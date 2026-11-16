@@ -11,7 +11,7 @@ We propose a **rotating oracle-guided deep ensemble framework**: a pool of *N* i
 ### Key Contributions
 
 - A systematic comparison of **9 uncertainty metrics** (4 single-model, 5 ensemble-based) and **coverage-based baselines** across 6 dataset–architecture pairs.
-- **AggregatedMI**, a new ensemble metric defined as `0.5 × normalize(entropy) + 0.5 × normalize(mutual_info)`, which consistently ranks among the top performers.
+- investigate **AggregatedMI**, a new ensemble metric defined as `0.5 × normalize(entropy) + 0.5 × normalize(mutual_info)`.
 - Two ensemble configurations — **Exclusive** (oracle held out) and **Inclusive** (oracle included) — with statistical evidence that Inclusive matching or outperforming Exclusive.
 - **Guidance-based retraining**: using prioritization rankings to guide targeted model retraining and measuring downstream accuracy improvement.
 - Rigorous statistical validation: paired bootstrap, Holm-Bonferroni correction, exact permutation tests, Wilcoxon signed-rank, and Cohen's d_z effect sizes.

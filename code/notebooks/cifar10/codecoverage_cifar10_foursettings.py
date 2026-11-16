@@ -14,7 +14,8 @@ Architecture handling matches the ORIGINAL scripts exactly:
                      load_adv_for), so clean and adversarial live in one space.
   * models         : resnet20_best / seed1 / seed2 / seed9 / seed23
   * adv mapping    : cifar10_{attack}_resnet20_{name}.npy, name = best/seedX
-  
+"""
+
 import os
 os.environ.setdefault("OMP_NUM_THREADS", "16")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "16")
@@ -75,7 +76,6 @@ def load_cifar():
     return (x_train, y_train), (x_test, y_test), mean
 
 def load_adv_for(model_key, mean):
-    
     suffix = ADV_SUFFIX[model_key]
     xs = []
     for attack in ["fgsm", "bim"]:
@@ -99,7 +99,6 @@ def load_adv_for(model_key, mean):
 # =====================================================
 
 def build_activation_model(model):
-    
     relu_layers = [
         l for l in model.layers
         if isinstance(l, tf.keras.layers.ReLU)
@@ -262,7 +261,7 @@ def build_metric_names():
     unc_names = [
         "DeepGini", "Entropy", "Softmax", "PCS",
         "EnsGini", "Variance", "Disagreement", "MutualInfo",
-, "AdaptiveMI"
+        "AggregatedMI"
     ]
 
     cov_names = []
@@ -318,8 +317,6 @@ def run_one_configuration(
     y_clean,
     mean,
 ):
-    """Run one of the four experiments and save its JSON results."""
-
     run_start_wall = time.perf_counter()
     started_at = utc_now()
     rng_local = np.random.default_rng(SEED)
@@ -357,8 +354,6 @@ def run_one_configuration(
 
         # -------------------------------------------------
         # Predictions from all configured models
-        # Measure each model separately so end-to-end timing can
-        # include only the inference actually required by each method.
         # -------------------------------------------------
         model_inference_times = {}
         all_probs_list = []
@@ -410,12 +405,6 @@ def run_one_configuration(
         ]
         ensemble_inference_time = sum(
             model_inference_times[n] for n in ensemble_names
-        )
-
-        # All models are needed only when a method explicitly requires
-        # both the oracle and the ensemble containing/excluding it.
-        adaptive_extra_oracle_time = (
-            0.0 if ensemble_setting == "inclusive" else oracle_inference_time
         )
 
         rankings = {}
@@ -475,25 +464,20 @@ def run_one_configuration(
         end_to_end_times["MutualInfo"].append(ensemble_inference_time + times["MutualInfo"][-1])
 
         t0 = time.perf_counter()
-        av = (1 - normalize(var)) * normalize(gini) + normalize(var) ** 2
-
-        t0 = time.perf_counter()
         ami = (
             0.5 * normalize(entropy(mp))
             + 0.5 * normalize(mutual_information(ens))
         )
-        rankings["AdaptiveMI"] = rank_desc(ami, rng_local)
-        times["AdaptiveMI"].append(time.perf_counter() - t0)
-        end_to_end_times["AdaptiveMI"].append(
+        rankings["AggregatedMI"] = rank_desc(ami, rng_local)
+        times["AggregatedMI"].append(time.perf_counter() - t0)
+        end_to_end_times["AggregatedMI"].append(
             ensemble_inference_time
-            + times["AdaptiveMI"][-1]
+            + times["AggregatedMI"][-1]
         )
 
         # -------------------------------------------------
         # ACTIVATIONS
         # -------------------------------------------------
-        # Activation preparation time includes activation-model construction,
-        # train-set profiling/statistics, and evaluation-pool extraction.
         t_ex0 = time.perf_counter()
         act_model = build_activation_model(models[oracle])
         A_train, _ = extract_activations(act_model, x_train)
@@ -510,8 +494,6 @@ def run_one_configuration(
         # CTM / CAM helper
         # -------------------------------------------------
         def do_ctm_cam(tag, cov, cov_compute_time):
-            # CTM: activation preparation + coverage construction
-            # + prioritization/ranking.
             t0 = time.perf_counter()
             rankings[f"{tag}-CTM"] = rank_desc(
                 cov.sum(axis=1), rng_local
@@ -523,8 +505,6 @@ def run_one_configuration(
                 t_ex + cov_compute_time + rank_time
             )
 
-            # CAM: activation preparation + coverage construction
-            # + greedy set-cover prioritization.
             t0 = time.perf_counter()
             r, n_p, cr = greedy_cam(
                 cov, rng_local, CAM_MAX_PICKS
@@ -790,7 +770,6 @@ def generate_latex_table(all_payloads, output_tex):
     )
     lines.append(r"\midrule")
 
-    # Section classification follows the experiment structure.
     sections = [
         ("Coverage-Based Metrics", [
             k for k in metric_names
@@ -801,7 +780,7 @@ def generate_latex_table(all_payloads, output_tex):
         ]),
         ("Ensemble-Based Metrics", [
             "EnsGini", "Variance", "Disagreement", "MutualInfo",
-, "AdaptiveMI"
+            "AggregatedMI"
         ]),
         ("Baseline", ["Random"]),
     ]

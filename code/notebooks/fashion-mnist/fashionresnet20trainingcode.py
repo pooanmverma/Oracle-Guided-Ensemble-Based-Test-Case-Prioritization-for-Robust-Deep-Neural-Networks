@@ -706,7 +706,7 @@ def run_experiment(dataset_mode, ensemble_setting):
         "Variance",
         "Disagreement",
         "MutualInfo",
-        "AdaptiveMI",
+        "AggregatedMI",
     ]
 
     cov_names = []
@@ -1133,12 +1133,12 @@ def run_experiment(dataset_mode, ensemble_setting):
             )
         )
 
-        rankings["AdaptiveMI"] = rank_desc(
+        rankings["AggregatedMI"] = rank_desc(
             adaptive_mi,
             rng
         )
 
-        times["AdaptiveMI"].append(
+        times["AggregatedMI"].append(
             time.time() - t0
         )
         adaptive_extra_oracle_time = (
@@ -1146,10 +1146,10 @@ def run_experiment(dataset_mode, ensemble_setting):
             if ensemble_setting == "inclusive"
             else oracle_inference_time
         )
-        end_to_end_times["AdaptiveMI"].append(
+        end_to_end_times["AggregatedMI"].append(
             ensemble_inference_time
             + adaptive_extra_oracle_time
-            + times["AdaptiveMI"][-1]
+            + times["AggregatedMI"][-1]
         )
 
         # =================================================

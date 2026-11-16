@@ -11,11 +11,11 @@
 #   * per-model inference timed separately (model_inference_times)
 #   * each method's end_to_end_time INCLUDES the inference it needs:
 #       single-model -> oracle inference ; ensemble -> ensemble inference
-# AdaptiveMI -> ensemble (+ oracle if exclusive)
+# AggregatedMI -> ensemble (+ oracle if exclusive)
 #       coverage -> activation extraction (t_ex) + coverage build + ranking
 #       Random -> ranking only
 #   * separate score_ranking_time (times) and prioritization_time (end_to_end)
-#   NOTE: AdaptiveMI formula kept as-is (entropy(oracle_probs)); not altered.
+#   NOTE: AggregatedMI formula kept as-is (entropy(oracle_probs)); not altered.
 # =====================================================
 
 import os
@@ -349,7 +349,7 @@ def build_metric_names():
     unc_names = [
         "DeepGini", "Entropy", "Softmax", "PCS",
         "EnsGini", "Variance", "Disagreement", "MutualInfo",
-, "AdaptiveMI",
+, "AggregatedMI",
     ]
     cov_names = []
     for t in NAC_TS:
@@ -493,10 +493,10 @@ def run_one_configuration(dataset_mode, ensemble_setting, models, names,
         # formula UNCHANGED: oracle entropy + ensemble MI (needs oracle + ensemble)
         ami = (0.5 * normalize(entropy(oracle_probs))
                + 0.5 * normalize(mutual_information(ens)))
-        rankings["AdaptiveMI"] = rank_desc(ami, rng_local)
-        times["AdaptiveMI"].append(time.perf_counter() - t0)
-        end_to_end_times["AdaptiveMI"].append(
-            ensemble_inference_time + adaptive_extra_oracle_time + times["AdaptiveMI"][-1]
+        rankings["AggregatedMI"] = rank_desc(ami, rng_local)
+        times["AggregatedMI"].append(time.perf_counter() - t0)
+        end_to_end_times["AggregatedMI"].append(
+            ensemble_inference_time + adaptive_extra_oracle_time + times["AggregatedMI"][-1]
         )
 
         # ---------------- ACTIVATIONS ----------------
@@ -687,7 +687,7 @@ def generate_latex_table(all_payloads, output_tex):
         ("Coverage-Based Metrics", [k for k in metric_names if "-CTM" in k or "-CAM" in k]),
         ("Single-Model Metrics", ["DeepGini", "Entropy", "Softmax", "PCS"]),
         ("Ensemble-Based Metrics",
- ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AdaptiveMI"]),
+ ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AggregatedMI"]),
         ("Baseline", ["Random"]),
     ]
 

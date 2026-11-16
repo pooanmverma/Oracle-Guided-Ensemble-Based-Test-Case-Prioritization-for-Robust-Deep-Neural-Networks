@@ -8,11 +8,11 @@ END-TO-END TIMING PORTED FROM THE CIFAR-10 SCRIPT (consistent across datasets):
   * each method's end_to_end_time INCLUDES the inference it actually needs:
       single-model  -> oracle inference
       ensemble      -> ensemble inference (incl/excl oracle per setting)
-      AdaptiveMI    -> ensemble inference
+      AggregatedMI    -> ensemble inference
       coverage      -> activation extraction (t_ex) + coverage build + ranking
       Random        -> ranking only (no inference)
   * separate `times` (score+ranking) and `end_to_end_times` (inference-inclusive)
-  * AdaptiveMI uses entropy(mean_probs) [ensemble-mean entropy] to match CIFAR,
+  * AggregatedMI uses entropy(mean_probs) [ensemble-mean entropy] to match CIFAR,
     so it is a purely ensemble-based metric (NOTE: Fashion/older MNIST used
     entropy(oracle_probs); this file now matches CIFAR).
 
@@ -240,7 +240,7 @@ def utc_now():
 def build_metric_names():
     unc_names = ["DeepGini", "Entropy", "Softmax", "PCS",
                  "EnsGini", "Variance", "Disagreement", "MutualInfo",
-, "AdaptiveMI"]
+, "AggregatedMI"]
     cov_names = []
     for t in NAC_TS:   cov_names += [f"NAC({t})-CTM", f"NAC({t})-CAM"]
     for s in NBC_STDS: cov_names += [f"NBC({s})-CTM", f"NBC({s})-CAM"]
@@ -373,9 +373,9 @@ def run_one_configuration(dataset_mode, ensemble_setting, models, names,
         t0 = time.perf_counter()
         # matches CIFAR: ensemble-mean entropy (purely ensemble-based)
         ami = 0.5 * normalize(entropy(mp)) + 0.5 * normalize(mutual_information(ens))
-        rankings["AdaptiveMI"] = rank_desc(ami, rng_local)
-        times["AdaptiveMI"].append(time.perf_counter() - t0)
-        end_to_end_times["AdaptiveMI"].append(ensemble_inference_time + times["AdaptiveMI"][-1])
+        rankings["AggregatedMI"] = rank_desc(ami, rng_local)
+        times["AggregatedMI"].append(time.perf_counter() - t0)
+        end_to_end_times["AggregatedMI"].append(ensemble_inference_time + times["AggregatedMI"][-1])
 
         # ---- ACTIVATIONS (t_ex = construction + train profiling + pool extraction) ----
         t_ex0 = time.perf_counter()

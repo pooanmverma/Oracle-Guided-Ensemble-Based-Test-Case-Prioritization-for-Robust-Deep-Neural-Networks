@@ -31,7 +31,7 @@ _CIFAR_MEAN = None                           # per-pixel CIFAR train mean, set i
 DATASETS = ["fashion", "fashion20", "cifar", "svhn", "mnist5", "mnist1"]
 
 SINGLE_METRICS   = ["DeepGini", "Entropy", "Softmax", "PCS"]
-ENSEMBLE_METRICS = ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AdaptiveMI"]
+ENSEMBLE_METRICS = ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AggregatedMI"]
 SETTINGS = [("clean","inclusive"), ("adversarial","inclusive"),
             ("clean","exclusive"), ("adversarial","exclusive")]
 
@@ -118,11 +118,11 @@ def priority_scores(all_probs, oi, setting):
     ens = all_probs[np.arange(len(all_probs))!=oi] if setting=="exclusive" else all_probs
     mp = ens.mean(0)
     gini=deepgini(op); ent=entropy(op); var=ens_var(ens); mi=mutual_info(ens)
-    ent_mean = entropy(mp)                      # AdaptiveMI uses ensemble-mean entropy, not oracle entropy
+    ent_mean = entropy(mp)                      # AggregatedMI uses ensemble-mean entropy, not oracle entropy
     ami = 0.5*normalize(ent_mean) + 0.5*normalize(mi)
     return {"DeepGini":gini,"Entropy":ent,"Softmax":-conf(op),"PCS":-pcs(op),
             "EnsGini":deepgini(mp),"Variance":var,"Disagreement":disagree(mp),
-            "MutualInfo":mi,"AdaptiveMI":ami}
+            "MutualInfo":mi,"AggregatedMI":ami}
 
 def apfd_scores(score, faulty):
     n=len(score); m=int(faulty.sum())

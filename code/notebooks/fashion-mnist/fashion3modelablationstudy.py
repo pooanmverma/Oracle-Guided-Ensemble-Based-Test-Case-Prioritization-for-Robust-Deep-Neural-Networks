@@ -708,7 +708,7 @@ def run_experiment():
         "Variance",
         "Disagreement",
         "MutualInfo",
-        "AdaptiveMI",
+        "AggregatedMI",
     ]
 
     cov_names = []
@@ -1213,21 +1213,21 @@ def run_experiment():
 
         rank_start = time.time()
 
-        rankings["AdaptiveMI"] = rank_desc(
+        rankings["AggregatedMI"] = rank_desc(
             adaptive_mi,
             rng
         )
 
-        ranking_times["AdaptiveMI"].append(
+        ranking_times["AggregatedMI"].append(
             time.time() - rank_start
         )
 
-        times["AdaptiveMI"].append(
+        times["AggregatedMI"].append(
             time.time() - t0
         )
 
-        end_to_end_times["AdaptiveMI"].append(
-            all_models_inference_time + times["AdaptiveMI"][-1]
+        end_to_end_times["AggregatedMI"].append(
+            all_models_inference_time + times["AggregatedMI"][-1]
         )
 
         # =================================================

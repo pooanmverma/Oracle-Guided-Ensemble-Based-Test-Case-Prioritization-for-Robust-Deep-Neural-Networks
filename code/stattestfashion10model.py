@@ -1,26 +1,3 @@
-"""
-Statistical tests on 10-model Fashion-MNIST (LeNet-5).
-
-With n=10 oracle rotations:
-  - Exact permutation test: 2^10 = 1024 permutations → min p = 2/1024 ≈ 0.00195
-  - Wilcoxon signed-rank test: n≥6 → p<0.05 ACHIEVABLE
-  - Cohen's d_z: paired effect size
-
-Protocol: same rotating-oracle as the paper.
-  For each oracle i (i=0..9):
-    - Pool = adv(oracle_i) + clean   (MIX_CLEAN=True)
-    - Faults = oracle_i misclassifies
-    - Exclusive = ensemble of OTHER 9 models
-    - Inclusive = ensemble of ALL 10 models
-    - APFD for each metric in both settings
-  Then: paired difference = inclusive_APFD - exclusive_APFD for each oracle round.
-  Statistical tests on these 10 paired differences.
-
-SAFETY: models loaded READ-ONLY (compile=False). Never .save().
-
-Usage:  python stat_test_fashion10.py
-"""
-
 import os, gc, itertools
 import numpy as np
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -63,7 +40,7 @@ def mutual_info(ens):
 def normalize(x):
     return (x - x.min()) / (x.max() - x.min() + EPS)
 
-ENSEMBLE_METRICS = ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AdaptiveMI"]
+ENSEMBLE_METRICS = ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AggregatedMI"]
 
 def compute_ensemble_scores(P_pool, oracle_idx, setting):
     n_models = len(P_pool)
@@ -80,7 +57,7 @@ def compute_ensemble_scores(P_pool, oracle_idx, setting):
         "Variance":      ens_var(ens),
         "Disagreement":  disagree(mp),
         "MutualInfo":    mi,
-        "AdaptiveMI":    ami,
+        "AggregatedMI":    ami,
     }
 
 # ============================================================ APFD

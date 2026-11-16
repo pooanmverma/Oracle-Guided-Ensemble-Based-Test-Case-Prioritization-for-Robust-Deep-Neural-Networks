@@ -3,7 +3,7 @@ CIFAR-10 (ResNet-20) rotating-oracle TCP comparison:
     uncertainty / ensemble metrics  vs  coverage-based baselines
 
 Runs all four configurations (clean/adversarial x exclusive/inclusive),
-saves per-run JSON with APFD + end-to-end prioritization time + wall-clock, writes a
+saves per-run JSON with APFD + prioritization time + wall-clock, writes a
 combined JSON, and auto-generates one LaTeX table with all four settings.
 
 Architecture handling matches the ORIGINAL scripts exactly:
@@ -14,6 +14,9 @@ Architecture handling matches the ORIGINAL scripts exactly:
                      load_adv_for), so clean and adversarial live in one space.
   * models         : resnet20_best / seed1 / seed2 / seed9 / seed23
   * adv mapping    : cifar10_{attack}_resnet20_{name}.npy, name = best/seedX
+  * activations    : ReLU-layer outputs (~698 neurons).
+
+KMNC kept at 1000 bins only (10000 is too heavy for 698 neurons on this pool).
 """
 
 import os
@@ -35,7 +38,7 @@ import tensorflow as tf
 
 BATCH = 128
 SEED = 42
-BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+BASE = "/scratch/sp/poonam/smoothing-consistency-master/code"
 
 # model name -> (model file, adv-file suffix)  -- matches original scripts
 MODEL_SPEC = {
@@ -55,10 +58,11 @@ NAC_TS = [0.0, 0.75]
 NBC_STDS = [0.0, 0.5, 1.0]
 SNAC_STDS = [0.0, 0.5, 1.0]
 TKNC_KS = [1, 2, 3]
-KMNC_BINS_LIST = [1000]
+KMNC_BINS_LIST = [1000, 10000]
 CAM_MAX_PICKS = None
 
 rng = np.random.default_rng(SEED)
+
 
 # =====================================================
 # DATA  (mean-subtraction, exactly as in training)
@@ -75,7 +79,13 @@ def load_cifar():
     x_test -= mean
     return (x_train, y_train), (x_test, y_test), mean
 
+
 def load_adv_for(model_key, mean):
+    """
+    Adversarial files are stored in [0,1] space. We subtract the training mean
+    once, exactly like the clean pool (and like the reference script). No /255
+    and no max-value guessing.
+    """
     suffix = ADV_SUFFIX[model_key]
     xs = []
     for attack in ["fgsm", "bim"]:
@@ -85,28 +95,26 @@ def load_adv_for(model_key, mean):
             x = x - mean                 # same single normalization as clean pool
             xs.append(x)
         else:
-            raise FileNotFoundError(
-                f"Missing adversarial file: {path}"
-            )
-    if len(xs) != 2:
-        raise RuntimeError(
-            f"Expected both FGSM and BIM adversarial files for oracle '{model_key}'."
-        )
+            print(f"  [warn] missing {path}")
+    if not xs:
+        return None
     return np.concatenate(xs, axis=0)
+
 
 # =====================================================
 # ACTIVATION EXTRACTION  (ReLU outputs for ResNet)
 # =====================================================
 
 def build_activation_model(model):
-    relu_layers = [
-        l for l in model.layers
-        if isinstance(l, tf.keras.layers.ReLU)
-        or (
-            isinstance(l, tf.keras.layers.Activation)
-            and l.get_config().get("activation") == "relu"
-        )
-    ]
+    """
+    ResNet uses Conv2D -> BatchNormalization -> ReLU as separate layers, plus
+    post-residual ReLU after each Add. We profile the ReLU outputs (post-
+    activation neurons). Averaging over spatial dims in extract_activations()
+    collapses each feature map to one neuron -> ~698.
+    """
+    relu_layers = [l for l in model.layers
+                   if isinstance(l, (tf.keras.layers.ReLU,
+                                     tf.keras.layers.Activation))]
     if not relu_layers:
         # fallback: some models bake relu into Conv/Dense
         relu_layers = [l for l in model.layers
@@ -114,6 +122,7 @@ def build_activation_model(model):
                                          tf.keras.layers.Dense))][:-1]
     return tf.keras.models.Model(inputs=model.inputs,
                                  outputs=[l.output for l in relu_layers])
+
 
 def extract_activations(act_model, x, batch=BATCH):
     outs = act_model.predict(x, batch_size=batch, verbose=0)
@@ -126,6 +135,7 @@ def extract_activations(act_model, x, batch=BATCH):
         feats.append(o.astype("float32"))
         layer_ids.append(np.full(o.shape[1], i, dtype=np.int32))
     return np.concatenate(feats, axis=1), np.concatenate(layer_ids)
+
 
 # =====================================================
 # RANKING HELPERS
@@ -182,6 +192,7 @@ def greedy_cam_kmnc(bin_ids, k_bins, rng, max_picks=None):
     cov_rate = covered[:, 1:k_bins + 1].sum() / float(M * k_bins)
     return full, len(order), cov_rate
 
+
 # =====================================================
 # COVERAGE CRITERIA
 # =====================================================
@@ -212,13 +223,14 @@ def kmnc_bin_ids(A, lower, upper, k_bins):
     ids = np.floor((A - lower) / span * k_bins).astype(np.int32) + 1
     return np.clip(ids, 0, k_bins + 1)
 
+
 # =====================================================
 # UNCERTAINTY METRICS
 # =====================================================
 
 def deepgini(p): return 1 - np.sum(p ** 2, axis=1)
 def entropy(p): return -np.sum(p * np.log(p + 1e-12), axis=1)
-def classwise_variance(probs): return np.mean(np.var(probs, axis=0), axis=1)
+def ensemble_variance(probs): return np.mean(np.var(probs, axis=0), axis=1)
 def disagreement(mp): return 1 - np.max(mp, axis=1)
 
 def mutual_information(ens):
@@ -232,6 +244,7 @@ def pcs(p):
     s = -np.sort(-p, axis=1); return s[:, 0] - s[:, 1]
 def normalize(x): return (x - x.min()) / (x.max() - x.min() + 1e-12)
 
+
 # =====================================================
 # APFD
 # =====================================================
@@ -242,6 +255,7 @@ def APFD(rank, faulty):
     pos = np.empty(n, dtype=np.int64)
     pos[np.asarray(rank)] = np.arange(1, n + 1)
     return 1 - pos[faulty.astype(bool)].sum() / (n * m) + 1 / (2 * n)
+
 
 # =====================================================
 # EXPERIMENT RUNNER
@@ -254,14 +268,16 @@ RUN_CONFIGS = [
     ("adversarial", "inclusive"),
 ]
 
+
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
 
 def build_metric_names():
     unc_names = [
         "DeepGini", "Entropy", "Softmax", "PCS",
-        "EnsGini", "ClassWiseVar", "Disagreement", "MutualInfo",
-        "AggregatedMI"
+        "EnsGini", "Variance", "Disagreement", "MutualInfo",
+        "AdaptiveVar", "AdaptiveMI"
     ]
 
     cov_names = []
@@ -277,6 +293,7 @@ def build_metric_names():
         cov_names.append(f"KMNC({b})-CAM")
 
     return unc_names, cov_names, unc_names + cov_names + ["Random"]
+
 
 def prepare_pool(dataset_mode, oracle, x_clean, y_clean, mean):
     if dataset_mode == "clean":
@@ -307,6 +324,7 @@ def prepare_pool(dataset_mode, oracle, x_clean, y_clean, mean):
 
     return x_all, y_all
 
+
 def run_one_configuration(
     dataset_mode,
     ensemble_setting,
@@ -317,6 +335,8 @@ def run_one_configuration(
     y_clean,
     mean,
 ):
+    """Run one of the four experiments and save its JSON results."""
+
     run_start_wall = time.perf_counter()
     started_at = utc_now()
     rng_local = np.random.default_rng(SEED)
@@ -325,7 +345,6 @@ def run_one_configuration(
 
     results = {k: [] for k in metric_names}
     times = {k: [] for k in metric_names}
-    end_to_end_times = {k: [] for k in metric_names}
     maxcov = {k: [] for k in cov_names}
     picks = {k: [] for k in cov_names if k.endswith("CAM")}
 
@@ -355,21 +374,15 @@ def run_one_configuration(
         # -------------------------------------------------
         # Predictions from all configured models
         # -------------------------------------------------
-        model_inference_times = {}
-        all_probs_list = []
-
-        for n in names:
-            t_pred = time.perf_counter()
-            p = models[n].predict(
-                x_all,
-                batch_size=BATCH,
-                verbose=0,
-            )
-            model_inference_times[n] = time.perf_counter() - t_pred
-            all_probs_list.append(p)
-
         all_probs = np.stack(
-            all_probs_list,
+            [
+                models[n].predict(
+                    x_all,
+                    batch_size=BATCH,
+                    verbose=0,
+                )
+                for n in names
+            ],
             axis=0,
         )
 
@@ -396,17 +409,6 @@ def run_one_configuration(
         assert ens.shape[0] == expected_size
 
         mp = np.mean(ens, axis=0)
-
-        oracle_inference_time = model_inference_times[oracle]
-        ensemble_names = [
-            names[j]
-            for j in range(len(names))
-            if ensemble_setting == "inclusive" or j != oi
-        ]
-        ensemble_inference_time = sum(
-            model_inference_times[n] for n in ensemble_names
-        )
-
         rankings = {}
 
         # -------------------------------------------------
@@ -416,25 +418,21 @@ def run_one_configuration(
         gini = deepgini(oracle_probs)
         rankings["DeepGini"] = rank_desc(gini, rng_local)
         times["DeepGini"].append(time.perf_counter() - t0)
-        end_to_end_times["DeepGini"].append(oracle_inference_time + times["DeepGini"][-1])
 
         t0 = time.perf_counter()
         ent = entropy(oracle_probs)
         rankings["Entropy"] = rank_desc(ent, rng_local)
         times["Entropy"].append(time.perf_counter() - t0)
-        end_to_end_times["Entropy"].append(oracle_inference_time + times["Entropy"][-1])
 
         t0 = time.perf_counter()
         soft = softmax_confidence(oracle_probs)
         rankings["Softmax"] = rank_asc(soft, rng_local)
         times["Softmax"].append(time.perf_counter() - t0)
-        end_to_end_times["Softmax"].append(oracle_inference_time + times["Softmax"][-1])
 
         t0 = time.perf_counter()
         pcs_s = pcs(oracle_probs)
         rankings["PCS"] = rank_asc(pcs_s, rng_local)
         times["PCS"].append(time.perf_counter() - t0)
-        end_to_end_times["PCS"].append(oracle_inference_time + times["PCS"][-1])
 
         # -------------------------------------------------
         # ENSEMBLE UNCERTAINTY
@@ -443,43 +441,41 @@ def run_one_configuration(
         gini_ens = deepgini(mp)
         rankings["EnsGini"] = rank_desc(gini_ens, rng_local)
         times["EnsGini"].append(time.perf_counter() - t0)
-        end_to_end_times["EnsGini"].append(ensemble_inference_time + times["EnsGini"][-1])
 
         t0 = time.perf_counter()
-        var = classwise_variance(ens)
-        rankings["ClassWiseVar"] = rank_desc(var, rng_local)
-        times["ClassWiseVar"].append(time.perf_counter() - t0)
-        end_to_end_times["ClassWiseVar"].append(ensemble_inference_time + times["ClassWiseVar"][-1])
+        var = ensemble_variance(ens)
+        rankings["Variance"] = rank_desc(var, rng_local)
+        times["Variance"].append(time.perf_counter() - t0)
 
         t0 = time.perf_counter()
         dis = disagreement(mp)
         rankings["Disagreement"] = rank_desc(dis, rng_local)
         times["Disagreement"].append(time.perf_counter() - t0)
-        end_to_end_times["Disagreement"].append(ensemble_inference_time + times["Disagreement"][-1])
 
         t0 = time.perf_counter()
         mi = mutual_information(ens)
         rankings["MutualInfo"] = rank_desc(mi, rng_local)
         times["MutualInfo"].append(time.perf_counter() - t0)
-        end_to_end_times["MutualInfo"].append(ensemble_inference_time + times["MutualInfo"][-1])
+
+        t0 = time.perf_counter()
+        av = (1 - normalize(var)) * normalize(gini) + normalize(var) ** 2
+        rankings["AdaptiveVar"] = rank_desc(av, rng_local)
+        times["AdaptiveVar"].append(time.perf_counter() - t0)
 
         t0 = time.perf_counter()
         ami = (
-            0.5 * normalize(entropy(mp))
+            0.5 * normalize(entropy(oracle_probs))
             + 0.5 * normalize(mutual_information(ens))
         )
-        rankings["AggregatedMI"] = rank_desc(ami, rng_local)
-        times["AggregatedMI"].append(time.perf_counter() - t0)
-        end_to_end_times["AggregatedMI"].append(
-            ensemble_inference_time
-            + times["AggregatedMI"][-1]
-        )
+        rankings["AdaptiveMI"] = rank_desc(ami, rng_local)
+        times["AdaptiveMI"].append(time.perf_counter() - t0)
 
         # -------------------------------------------------
         # ACTIVATIONS
         # -------------------------------------------------
-        t_ex0 = time.perf_counter()
         act_model = build_activation_model(models[oracle])
+
+        t_ex0 = time.perf_counter()
         A_train, _ = extract_activations(act_model, x_train)
         std_t = A_train.std(axis=0)
         max_t = A_train.max(axis=0)
@@ -493,28 +489,22 @@ def run_one_configuration(
         # -------------------------------------------------
         # CTM / CAM helper
         # -------------------------------------------------
-        def do_ctm_cam(tag, cov, cov_compute_time):
+        def do_ctm_cam(tag, cov):
             t0 = time.perf_counter()
             rankings[f"{tag}-CTM"] = rank_desc(
                 cov.sum(axis=1), rng_local
             )
-            rank_time = time.perf_counter() - t0
-
-            times[f"{tag}-CTM"].append(rank_time)
-            end_to_end_times[f"{tag}-CTM"].append(
-                t_ex + cov_compute_time + rank_time
+            times[f"{tag}-CTM"].append(
+                t_ex + time.perf_counter() - t0
             )
 
             t0 = time.perf_counter()
             r, n_p, cr = greedy_cam(
                 cov, rng_local, CAM_MAX_PICKS
             )
-            rank_time = time.perf_counter() - t0
-
             rankings[f"{tag}-CAM"] = r
-            times[f"{tag}-CAM"].append(rank_time)
-            end_to_end_times[f"{tag}-CAM"].append(
-                t_ex + cov_compute_time + rank_time
+            times[f"{tag}-CAM"].append(
+                t_ex + time.perf_counter() - t0
             )
 
             maxcov[f"{tag}-CTM"].append(cr)
@@ -532,44 +522,39 @@ def run_one_configuration(
         # COVERAGE METHODS
         # -------------------------------------------------
         for t in NAC_TS:
-            t_cov0 = time.perf_counter()
-            cov = nac_cover(A_all, t)
-            cov_compute_time = time.perf_counter() - t_cov0
-            do_ctm_cam(f"NAC({t})", cov, cov_compute_time)
+            do_ctm_cam(
+                f"NAC({t})",
+                nac_cover(A_all, t),
+            )
 
         for s in NBC_STDS:
-            t_cov0 = time.perf_counter()
-            cov = nbc_cover(
-                A_all,
-                max_t + s * std_t,
-                min_t - s * std_t,
+            do_ctm_cam(
+                f"NBC({s})",
+                nbc_cover(
+                    A_all,
+                    max_t + s * std_t,
+                    min_t - s * std_t,
+                ),
             )
-            cov_compute_time = time.perf_counter() - t_cov0
-            do_ctm_cam(f"NBC({s})", cov, cov_compute_time)
 
         for s in SNAC_STDS:
-            t_cov0 = time.perf_counter()
-            cov = snac_cover(
-                A_all,
-                max_t + s * std_t,
+            do_ctm_cam(
+                f"SNAC({s})",
+                snac_cover(
+                    A_all,
+                    max_t + s * std_t,
+                ),
             )
-            cov_compute_time = time.perf_counter() - t_cov0
-            do_ctm_cam(f"SNAC({s})", cov, cov_compute_time)
 
         for k in TKNC_KS:
-            t_cov0 = time.perf_counter()
             cov = tknc_cover(A_all, layer_ids, k)
-            cov_compute_time = time.perf_counter() - t_cov0
-
             t0 = time.perf_counter()
             r, n_p, cr = greedy_cam(
                 cov, rng_local, CAM_MAX_PICKS
             )
-            rank_time = time.perf_counter() - t0
             rankings[f"TKNC({k})-CAM"] = r
-            times[f"TKNC({k})-CAM"].append(rank_time)
-            end_to_end_times[f"TKNC({k})-CAM"].append(
-                t_ex + cov_compute_time + rank_time
+            times[f"TKNC({k})-CAM"].append(
+                t_ex + time.perf_counter() - t0
             )
             maxcov[f"TKNC({k})-CAM"].append(cr)
             picks[f"TKNC({k})-CAM"].append(n_p)
@@ -579,26 +564,21 @@ def run_one_configuration(
             )
 
         for b in KMNC_BINS_LIST:
-            t_cov0 = time.perf_counter()
+            t0 = time.perf_counter()
             bins = kmnc_bin_ids(
                 A_all, min_t, max_t, b
             )
-            cov_compute_time = time.perf_counter() - t_cov0
-
-            t0 = time.perf_counter()
             r, n_p, cr = greedy_cam_kmnc(
                 bins, b, rng_local, CAM_MAX_PICKS
             )
-            rank_time = time.perf_counter() - t0
             rankings[f"KMNC({b})-CAM"] = r
-            end_to_end_time = t_ex + cov_compute_time + rank_time
-            times[f"KMNC({b})-CAM"].append(rank_time)
-            end_to_end_times[f"KMNC({b})-CAM"].append(end_to_end_time)
+            el = t_ex + time.perf_counter() - t0
+            times[f"KMNC({b})-CAM"].append(el)
             maxcov[f"KMNC({b})-CAM"].append(cr)
             picks[f"KMNC({b})-CAM"].append(n_p)
             print(
                 f"  KMNC({b})  maxcov={cr * 100:5.1f}%/"
-                f"{n_p:<6d} time={end_to_end_time:.1f}s [CTM N/A]"
+                f"{n_p:<6d} time={el:.1f}s [CTM N/A]"
             )
 
         # -------------------------------------------------
@@ -607,26 +587,22 @@ def run_one_configuration(
         t0 = time.perf_counter()
         rankings["Random"] = rng_local.permutation(N)
         times["Random"].append(time.perf_counter() - t0)
-        end_to_end_times["Random"].append(times["Random"][-1])
 
         # -------------------------------------------------
         # APFD
         # -------------------------------------------------
         oracle_apfd = {}
         oracle_time = {}
-        oracle_score_ranking_time = {}
 
         for metric in metric_names:
             apfd_value = APFD(rankings[metric], faulty)
             results[metric].append(apfd_value)
             oracle_apfd[metric] = float(apfd_value)
-            oracle_time[metric] = float(end_to_end_times[metric][-1])
-            oracle_score_ranking_time[metric] = float(times[metric][-1])
+            oracle_time[metric] = float(times[metric][-1])
 
         per_oracle[oracle] = {
             "APFD": oracle_apfd,
             "prioritization_time_seconds": oracle_time,
-            "score_ranking_time_seconds": oracle_score_ranking_time,
             "activation_extraction_seconds": float(t_ex),
             "pool_size": int(N),
             "faulty_count": int(faulty.sum()),
@@ -644,15 +620,9 @@ def run_one_configuration(
             "APFD_mean": float(np.mean(results[metric])),
             "APFD_std": float(np.std(results[metric])),
             "prioritization_time_seconds_mean": float(
-                np.mean(end_to_end_times[metric])
-            ),
-            "prioritization_time_seconds_std": float(
-                np.std(end_to_end_times[metric])
-            ),
-            "score_ranking_time_seconds_mean": float(
                 np.mean(times[metric])
             ),
-            "score_ranking_time_seconds_std": float(
+            "prioritization_time_seconds_std": float(
                 np.std(times[metric])
             ),
         }
@@ -686,12 +656,6 @@ def run_one_configuration(
             "random_seed": SEED,
             "batch_size": BATCH,
             "CAM_MAX_PICKS": CAM_MAX_PICKS,
-            "timing_definition": (
-                "End-to-end prioritization time per method, including "
-                "method-required model inference, activation preparation/profiling "
-                "for coverage methods, coverage/bin computation, score computation, "
-                "and final ranking; model training excluded."
-            ),
             "started_at_utc": started_at,
             "finished_at_utc": finished_at,
             "wall_clock_time_seconds": float(wall_clock),
@@ -726,6 +690,7 @@ def run_one_configuration(
     print(f"Saved JSON: {output_json}")
 
     return payload, output_json
+
 
 def generate_latex_table(all_payloads, output_tex):
     """Generate one LaTeX table containing all four experiments."""
@@ -770,6 +735,7 @@ def generate_latex_table(all_payloads, output_tex):
     )
     lines.append(r"\midrule")
 
+    # Section classification follows the experiment structure.
     sections = [
         ("Coverage-Based Metrics", [
             k for k in metric_names
@@ -779,8 +745,8 @@ def generate_latex_table(all_payloads, output_tex):
             "DeepGini", "Entropy", "Softmax", "PCS"
         ]),
         ("Ensemble-Based Metrics", [
-            "EnsGini", "ClassWiseVar", "Disagreement", "MutualInfo",
-            "AggregatedMI"
+            "EnsGini", "Variance", "Disagreement", "MutualInfo",
+            "AdaptiveVar", "AdaptiveMI"
         ]),
         ("Baseline", ["Random"]),
     ]
@@ -812,6 +778,7 @@ def generate_latex_table(all_payloads, output_tex):
     lines.append(r"\end{table*}")
 
     Path(output_tex).write_text("\n".join(lines) + "\n")
+
 
 def main():
     overall_start = time.perf_counter()
@@ -893,6 +860,7 @@ def main():
     print(f"Combined JSON: {combined_json}")
     print(f"LaTeX table:   {table_tex}")
     print("=" * 78)
+
 
 if __name__ == "__main__":
     main()

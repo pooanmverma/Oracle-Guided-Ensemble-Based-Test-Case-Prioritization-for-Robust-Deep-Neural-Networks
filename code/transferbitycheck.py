@@ -134,7 +134,7 @@ def normalize(x):
     return (x - x.min()) / (x.max() - x.min() + EPS)
 
 SINGLE_METRICS   = ["DeepGini", "Entropy", "Softmax", "PCS"]
-ENSEMBLE_METRICS = ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AggregatedMI"]
+ENSEMBLE_METRICS = ["EnsGini", "ClassWiseVar", "Disagreement", "MutualInfo", "AggregatedMI"]
 ALL_METRICS      = SINGLE_METRICS + ENSEMBLE_METRICS
 
 def compute_all_scores(P_pool, oracle_idx, setting):
@@ -161,7 +161,7 @@ def compute_all_scores(P_pool, oracle_idx, setting):
         "Softmax":       -conf(op),
         "PCS":           -pcs(op),
         "EnsGini":       deepgini(mp),
-        "Variance":      ens_var(ens),
+        "ClassWiseVar":      ens_var(ens),
         "Disagreement":  disagree(mp),
         "MutualInfo":    mi,
         "AggregatedMI":    ami,

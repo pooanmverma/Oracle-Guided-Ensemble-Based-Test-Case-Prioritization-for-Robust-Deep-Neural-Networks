@@ -25,7 +25,7 @@ We propose a **rotating oracle-guided deep ensemble framework**: a pool of *N* i
 | Single-model | Softmax | max(p) — lower = more uncertain |
 | Single-model | PCS | gap between top-2 class probabilities |
 | Ensemble | EnsGini | DeepGini on mean ensemble prediction |
-| Ensemble | Variance | mean per-class variance across ensemble members |
+| Ensemble | ClassWiseVar | mean per-class variance across ensemble members |
 | Ensemble | Disagreement | 1 − max(mean prediction) |
 | Ensemble | MutualInfo | ensemble entropy minus mean member entropy |
 | Ensemble | **AggregatedMI** | 0.5 × norm(entropy) + 0.5 × norm(mutual_info) |

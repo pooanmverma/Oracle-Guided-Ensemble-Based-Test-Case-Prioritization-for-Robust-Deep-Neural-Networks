@@ -26,7 +26,7 @@ Dataset:
 
 Compared measures:
     EnsGini / MC-Gini
-    Class-wise ClassWiseVar
+    Class-wise Variance
     Disagreement
     MI
     Aggregated MI
@@ -515,7 +515,7 @@ def evaluate_mc_dropout(
 
     scores = {
         "MC-Gini": deepgini(mean_probs),
-        "Class-wise ClassWiseVar": classwise_variance(predictions),
+        "Class-wise Variance": classwise_variance(predictions),
         "Disagreement": disagreement(mean_probs),
         "MI": mi,
         "Aggregated MI": aggregated_mi(
@@ -780,7 +780,7 @@ def evaluate_deep_ensemble(
 
         scores = {
             "EnsGini": ens_gini,
-            "Class-wise ClassWiseVar": variance,
+            "Class-wise Variance": variance,
             "Disagreement": dis,
             "MI": mi,
             "Aggregated MI": ami,
@@ -830,7 +830,7 @@ def evaluate_deep_ensemble(
 
     metrics = [
         "EnsGini",
-        "Class-wise ClassWiseVar",
+        "Class-wise Variance",
         "Disagreement",
         "MI",
         "Aggregated MI",
@@ -885,7 +885,7 @@ def print_comparison(
 
     mapping = [
         ("EnsGini / MC-Gini", "MC-Gini", "EnsGini"),
-        ("Class-wise ClassWiseVar", "Class-wise ClassWiseVar", "Class-wise ClassWiseVar"),
+        ("Class-wise Variance", "Class-wise Variance", "Class-wise Variance"),
         ("Disagreement", "Disagreement", "Disagreement"),
         ("MI", "MI", "MI"),
         ("Aggregated MI", "Aggregated MI", "Aggregated MI"),

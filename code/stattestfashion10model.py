@@ -40,7 +40,7 @@ def mutual_info(ens):
 def normalize(x):
     return (x - x.min()) / (x.max() - x.min() + EPS)
 
-ENSEMBLE_METRICS = ["EnsGini", "ClassWiseVar", "Disagreement", "MutualInfo", "AggregatedMI"]
+ENSEMBLE_METRICS = ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AggregatedMI"]
 
 def compute_ensemble_scores(P_pool, oracle_idx, setting):
     n_models = len(P_pool)
@@ -54,7 +54,7 @@ def compute_ensemble_scores(P_pool, oracle_idx, setting):
     ami = 0.5 * normalize(ent_mean) + 0.5 * normalize(mi)
     return {
         "EnsGini":       deepgini(mp),
-        "ClassWiseVar":      ens_var(ens),
+        "Variance":      ens_var(ens),
         "Disagreement":  disagree(mp),
         "MutualInfo":    mi,
         "AggregatedMI":    ami,

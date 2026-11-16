@@ -530,7 +530,7 @@ def entropy(p):
         axis=1
     )
 
-def ensemble_variance(probs):
+def class_wise_variance(probs):
     return np.mean(
         np.var(
             probs,
@@ -705,7 +705,7 @@ def run_experiment():
         "Softmax",
         "PCS",
         "EnsGini",
-        "Variance",
+        "ClassWiseVar",
         "Disagreement",
         "MutualInfo",
         "AggregatedMI",
@@ -1118,30 +1118,30 @@ def run_experiment():
             ensemble_inference_time + times["EnsGini"][-1]
         )
 
-        # Variance
+        # ClassWiseVar
         t0 = time.time()
 
-        var = ensemble_variance(
+        var = class_wise_variance(
             ens
         )
 
         rank_start = time.time()
 
-        rankings["Variance"] = rank_desc(
+        rankings["ClassWiseVar"] = rank_desc(
             var,
             rng
         )
 
-        ranking_times["Variance"].append(
+        ranking_times["ClassWiseVar"].append(
             time.time() - rank_start
         )
 
-        times["Variance"].append(
+        times["ClassWiseVar"].append(
             time.time() - t0
         )
 
-        end_to_end_times["Variance"].append(
-            ensemble_inference_time + times["Variance"][-1]
+        end_to_end_times["ClassWiseVar"].append(
+            ensemble_inference_time + times["ClassWiseVar"][-1]
         )
 
         # Disagreement

@@ -218,7 +218,7 @@ def kmnc_bin_ids(A, lower, upper, k_bins):
 
 def deepgini(p): return 1 - np.sum(p ** 2, axis=1)
 def entropy(p): return -np.sum(p * np.log(p + 1e-12), axis=1)
-def ensemble_variance(probs): return np.mean(np.var(probs, axis=0), axis=1)
+def class_wise_variance(probs): return np.mean(np.var(probs, axis=0), axis=1)
 def disagreement(mp): return 1 - np.max(mp, axis=1)
 
 def mutual_information(ens):
@@ -260,7 +260,7 @@ def utc_now():
 def build_metric_names():
     unc_names = [
         "DeepGini", "Entropy", "Softmax", "PCS",
-        "EnsGini", "Variance", "Disagreement", "MutualInfo",
+        "EnsGini", "ClassWiseVar", "Disagreement", "MutualInfo",
         "AggregatedMI"
     ]
 
@@ -446,10 +446,10 @@ def run_one_configuration(
         end_to_end_times["EnsGini"].append(ensemble_inference_time + times["EnsGini"][-1])
 
         t0 = time.perf_counter()
-        var = ensemble_variance(ens)
-        rankings["Variance"] = rank_desc(var, rng_local)
-        times["Variance"].append(time.perf_counter() - t0)
-        end_to_end_times["Variance"].append(ensemble_inference_time + times["Variance"][-1])
+        var = class_wise_variance(ens)
+        rankings["ClassWiseVar"] = rank_desc(var, rng_local)
+        times["ClassWiseVar"].append(time.perf_counter() - t0)
+        end_to_end_times["ClassWiseVar"].append(ensemble_inference_time + times["ClassWiseVar"][-1])
 
         t0 = time.perf_counter()
         dis = disagreement(mp)
@@ -779,7 +779,7 @@ def generate_latex_table(all_payloads, output_tex):
             "DeepGini", "Entropy", "Softmax", "PCS"
         ]),
         ("Ensemble-Based Metrics", [
-            "EnsGini", "Variance", "Disagreement", "MutualInfo",
+            "EnsGini", "ClassWiseVar", "Disagreement", "MutualInfo",
             "AggregatedMI"
         ]),
         ("Baseline", ["Random"]),

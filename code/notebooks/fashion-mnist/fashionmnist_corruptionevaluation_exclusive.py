@@ -66,7 +66,7 @@ def deepgini(p):
 def entropy(p):
     return -np.sum(p*np.log(p+1e-12), axis=1)
 
-def ensemble_variance(probs):
+def class_wise_variance(probs):
     return np.mean(np.var(probs, axis=0), axis=1)
 
 def disagreement(mean_probs):
@@ -179,7 +179,7 @@ def main():
                 # metrics
                 gini_single = deepgini(oracle_probs)
                 gini_ens = deepgini(mean_probs)
-                var_score = ensemble_variance(ensemble_probs)
+                var_score = class_wise_variance(ensemble_probs)
                 ent_score = entropy(oracle_probs)
                 dis_score = disagreement(mean_probs)
                 mi_score = mutual_information(ensemble_probs)

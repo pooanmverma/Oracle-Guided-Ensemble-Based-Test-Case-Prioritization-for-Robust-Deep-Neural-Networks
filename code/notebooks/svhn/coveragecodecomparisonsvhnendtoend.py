@@ -306,7 +306,7 @@ def deepgini(p):
 def entropy(p):
     return -np.sum(p * np.log(p + 1e-12), axis=1)
 
-def ensemble_variance(probs):
+def class_wise_variance(probs):
     return np.mean(np.var(probs, axis=0), axis=1)
 
 def disagreement(mean_probs):
@@ -348,7 +348,7 @@ def APFD(rank, faulty):
 def build_metric_names():
     unc_names = [
         "DeepGini", "Entropy", "Softmax", "PCS",
-        "EnsGini", "Variance", "Disagreement", "MutualInfo",
+        "EnsGini", "ClassWiseVar", "Disagreement", "MutualInfo",
 , "AggregatedMI",
     ]
     cov_names = []
@@ -469,10 +469,10 @@ def run_one_configuration(dataset_mode, ensemble_setting, models, names,
         end_to_end_times["EnsGini"].append(ensemble_inference_time + times["EnsGini"][-1])
 
         t0 = time.perf_counter()
-        var = ensemble_variance(ens)
-        rankings["Variance"] = rank_desc(var, rng_local)
-        times["Variance"].append(time.perf_counter() - t0)
-        end_to_end_times["Variance"].append(ensemble_inference_time + times["Variance"][-1])
+        var = class_wise_variance(ens)
+        rankings["ClassWiseVar"] = rank_desc(var, rng_local)
+        times["ClassWiseVar"].append(time.perf_counter() - t0)
+        end_to_end_times["ClassWiseVar"].append(ensemble_inference_time + times["ClassWiseVar"][-1])
 
         t0 = time.perf_counter()
         dis = disagreement(mp)
@@ -687,7 +687,7 @@ def generate_latex_table(all_payloads, output_tex):
         ("Coverage-Based Metrics", [k for k in metric_names if "-CTM" in k or "-CAM" in k]),
         ("Single-Model Metrics", ["DeepGini", "Entropy", "Softmax", "PCS"]),
         ("Ensemble-Based Metrics",
- ["EnsGini", "Variance", "Disagreement", "MutualInfo", "AggregatedMI"]),
+ ["EnsGini", "ClassWiseVar", "Disagreement", "MutualInfo", "AggregatedMI"]),
         ("Baseline", ["Random"]),
     ]
 
